@@ -1,5 +1,6 @@
-## Item1: Type Deduction
-### Case 1: `ParamType` is a Reference or Pointer, but not a Universal Reference
+## Chapter 1: Deducing Types
+### Item1: Type Deduction
+#### Case 1: `ParamType` is a Reference or Pointer, but not a Universal Reference
 
 ```
 template<typename T>
@@ -33,7 +34,7 @@ f(px);                   // T is const int,
                          // param's type is const int*
 ```
 
-### Case 2: `ParamType` is a Universal Reference
+#### Case 2: `ParamType` is a Universal Reference
 ```
 template<typename T>
 void f(T&& param);       // param is now a universal reference
@@ -55,7 +56,7 @@ f(27);                   // 27 is rvalue, so T is int,
                          // param's type is therefore int&&
 ```
 
-### Case 3: `ParamType` is Neither a Pointer nor a Reference
+#### Case 3: `ParamType` is Neither a Pointer nor a Reference
 ```
 template<typename T>
 void f(T param);         // param is now passed by value
@@ -81,7 +82,7 @@ const char* const ptr =  // ptr is const pointer to const object
 f(ptr);                  // pass arg of type const char * const
 ```
 
-#### Array Arguments
+##### Array Arguments
 ```
 const char name[] = "J. P. Briggs";  // name's type is
                                      // const char[13]
@@ -104,7 +105,7 @@ f(name);               // pass array to f
 ```
 the type deduced for `T` is the actual type of the array. In this example, `T` is deduced to be `const char [13]`, and the type of `f`'s parameter (a reference to this array) is `const char (&)[13]`.
 
-#### Function Arguments
+##### Function Arguments
 ```
 void someFunc(int, double);   // someFunc is a function;
                               // type is void(int, double)
@@ -122,7 +123,7 @@ f2(someFunc);                 // param deduced as ref-to-func;
                               // type is void (&)(int, double)
 ```
 
-## Item 2: `auto` type deduction.
+### Item 2: `auto` type deduction.
 ```
 auto x = 27;
 const auto cx = x;
@@ -223,7 +224,7 @@ resetV({ 1, 2, 3 });          // error! can't deduce type
                               // for { 1, 2, 3 }
 ```
 
-## Item 3: `decltype`.
+### Item 3: `decltype`.
 ```
 template<typename Container, typename Index>    // C++14;
 auto authAndAccess(Container& c, Index i)       // not quite
@@ -306,7 +307,7 @@ decltype(auto) f2()
 }
 ```
 
-## Item 4: View deduced types
+### Item 4: View deduced types
 #### Compiler Diagnostics
 A generally effective way to get a compiler to show a type it has deduced is to use that type in a way that leads to compilation problems. The error message reporting the problem nearly always mentions the type that’s causing it.
 ```
@@ -336,7 +337,63 @@ error: 'yType' uses undefined class 'TD<const int *>'
 both of which show the types.
 
 #### Runtime Output
+`std::type_info::name` does not always work.
+If do need to rely on libraries, plz use the Boost TypeIndex library.
+Example:
 ```
-std::cout << typeid(x).name() << '\n';    // display types for
-std::cout << typeid(y).name() << '\n';    // x and y
+#include <boost/type_index.hpp>
+
+template<typename T>
+void f(const T& param)
+{
+  using std::cout;
+  using boost::typeindex::type_id_with_cvr;
+
+  // show T
+  cout << "T =     "
+       << type_id_with_cvr<T>().pretty_name()
+       << '\n';
+
+  // show param's type
+  cout << "param = "
+       << type_id_with_cvr<decltype(param)>().pretty_name()
+       << '\n';
+  …
+}
 ```
+
+## Chapter 2. `auto`
+### Item 5: Prefer `auto` to explicit type declarations.
+
+The `std::function` approach is generally bigger and slower than the `auto` approach, and it may yield out-of-memory exceptions, too, i.e., `auto` is more efficient and requires less space.
+
+There is a common example:
+```
+std::vector<int> v;
+…
+unsigned sz = v.size();
+```
+However, the official return type of `v.size()` is `std::vector<int>::size_type`, but few developers are aware of that, which act different in 64-bit Windows. Using `auto` ensures that you don’t have to spend time dealing with the related issues:
+```
+auto sz = v.size();  // sz's type is std::vector<int>::size_type
+```
+Another example:
+```
+std::unordered_map<std::string, int> m;
+…
+
+for (const std::pair<std::string, int>& p : m)
+{
+  …                   // do something with p
+}
+```
+Use `auto`: 
+```
+for (const auto& p : m)
+{
+  …                             // as before
+}
+```
+This is not only more efficient, it’s also easier to type. Also, if you use `auto` as the type of the target variable, you need not worry about mismatches between the type of variable you’re declaring and the type of the expression used to initialize it.
+
+**Note:** `auto` is an option, not a mandate. If, in your professional judgment, your code will be clearer or more maintainable or in some other way better by using explicit type declarations, you’re free to continue using them. Although some developers are disturbed by the fact that using `auto` eliminates the ability to determine an object’s type by a quick glance at the source code. However, IDEs’ ability to show object types often mitigates this problem, and, in many cases, a somewhat abstract view of an object’s type is just as useful as the exact type. It often suffices, for example, to know that an object is a container or a counter or a smart pointer, without knowing exactly what kind of container, counter, or smart pointer it is. Assuming well-chosen variable names, such abstract type information should almost always be at hand.
